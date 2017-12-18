@@ -1,6 +1,6 @@
 STAGING_DIR := package
 BUILDS_DIR  := builds
-STACK_NAME  := local-lambda-stack
+STACK_NAME  := ec2-custom-config
 MODULE      := my_lambda_package
 PIP         := pip install -r
 

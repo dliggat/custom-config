@@ -1,6 +1,8 @@
+import boto3
 import logging
 import os
 import yaml
+import json
 
 from my_lambda_package.utility import Utility
 
@@ -18,18 +20,50 @@ def _load_config(filename='config.yaml'):
     return config
 
 
+APPLICABLE_RESOURCES = ["AWS::EC2::Instance"]
+
+
+def evaluate_compliance(configuration_item):
+    if configuration_item["resourceType"] not in APPLICABLE_RESOURCES:
+        return "NOT_APPLICABLE"
+
+    # user_name = configuration_item["configuration"]["userName"]
+
+    # iam = boto3.client("iam")
+    # mfa = iam.list_mfa_devices(UserName=user_name)
+
+    # if len(mfa["MFADevices"]) > 0:
+    return "COMPLIANT"
+    # else:
+    #     return "NON_COMPLIANT"
+
+
 def handler(event, context):
-    """Entry point for the Lambda function."""
-    config = _load_config()
+    invoking_event = json.loads(event["invokingEvent"])
+    logger.info(invoking_event)
+    configuration_item = invoking_event["configurationItem"]
+    result_token = "No token found."
+    if "resultToken" in event:
+        result_token = event["resultToken"]
 
-    # Used to differentiate local vs Lambda.
-    if bool(os.getenv('STUB')):
-        logger.debug('$STUB set; likely running in development')
-    else:
-        logger.debug('No $STUB set; likely running in Lambda')
-
-    logger.info('This is being invoked from AWS account: {0}'.format(
-        Utility.aws_account_id()))
+    config = boto3.client("config")
+    config.put_evaluations(
+        Evaluations=[
+            {
+                "ComplianceResourceType":
+                    configuration_item["resourceType"],
+                "ComplianceResourceId":
+                    configuration_item["resourceId"],
+                "ComplianceType":
+                    evaluate_compliance(configuration_item),
+                "Annotation":
+                    "Foo bar",
+                "OrderingTimestamp":
+                    configuration_item["configurationItemCaptureTime"]
+            },
+        ],
+        ResultToken=result_token
+    )
 
 
 if __name__ == '__main__':
